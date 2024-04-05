@@ -93,6 +93,17 @@ class Graph {
             }
         }
     }
+
+    // Method to remove a vertex and associated edges
+    void removeVertex(String vertex) {
+        // Remove vertex from adjacency list
+        adjacencyList.remove(vertex);
+
+        // Remove references to the vertex from other vertices' adjacency lists
+        for (List<String> edges : adjacencyList.values()) {
+            edges.remove(vertex);
+        }
+    }
 }
 
 // Music Catalog
@@ -133,7 +144,7 @@ class MusicCatalog {
     }
 
     boolean searchSong(String title) {
-        return songTrie.search(title);
+        return songMetadata.containsKey(title);
     }
 
     List<String> getSongsByArtist(String artist) {
@@ -151,11 +162,21 @@ class MusicCatalog {
     void updateSongMetadata(String title, String newArtist, String newAlbum, String newGenre) {
         if (songMetadata.containsKey(title)) {
             Song song = songMetadata.get(title);
+
+            // Remove song from old metadata entries
+            artistMetadata.get(song.artist).remove(title);
+            albumMetadata.get(song.album).remove(title);
+            genreMetadata.get(song.genre).remove(title);
+
+            // Update song metadata
             song.artist = newArtist;
             song.album = newAlbum;
             song.genre = newGenre;
 
-            // Update the graph and metadata accordingly
+            // Update metadata maps with new metadata entries
+            artistMetadata.computeIfAbsent(newArtist, k -> new HashSet<>()).add(title);
+            albumMetadata.computeIfAbsent(newAlbum, k -> new HashSet<>()).add(title);
+            genreMetadata.computeIfAbsent(newGenre, k -> new HashSet<>()).add(title);
         }
     }
 
@@ -167,21 +188,24 @@ class MusicCatalog {
 
         Song song = songMetadata.get(title);
 
+        // Remove song from Trie
         songTrie.search(title);
         songMetadata.remove(title);
 
-        catalogGraph.addVertex(title);
-        catalogGraph.addVertex(song.artist);
-        catalogGraph.addVertex(song.album);
-        catalogGraph.addVertex(song.genre);
+        // Remove song and associated vertices from the graph
+        catalogGraph.removeVertex(title);
+        catalogGraph.removeVertex(song.artist);
+        catalogGraph.removeVertex(song.album);
+        catalogGraph.removeVertex(song.genre);
 
+        // Remove song from metadata maps
         artistMetadata.get(song.artist).remove(title);
         albumMetadata.get(song.album).remove(title);
         genreMetadata.get(song.genre).remove(title);
     }
 }
 
-public class Main {
+public class MusicCatalogMainFinal {
     public static void main(String[] args) {
         MusicCatalog catalog = new MusicCatalog();
 
@@ -202,6 +226,9 @@ public class Main {
         catalog.addSong("Song13", "Artist5", "Album3", "Genre3");
         catalog.addSong("Song14", "Artist1", "Album1", "Genre2");
         catalog.addSong("Song15", "Artist6", "Album2", "Genre1");
+
+        catalog.deleteSong("Song14");
+        catalog.updateSongMetadata("Song12", "Arijit", "Fitoor", "RomCom");
 
         // Interactive terminal interface
         Scanner scanner = new Scanner(System.in);
@@ -251,7 +278,7 @@ public class Main {
                     } else {
                         System.out.println("No songs found by artist '" + artist + "'");
                     }
-                }else if(searchOption == 'd'){
+                } else if (searchOption == 'd') {
                     break;
                 } else {
                     System.out.println("Invalid option");
